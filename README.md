@@ -5,9 +5,15 @@ It serves as a foundation for larger Minecraft networks with multiple servers an
 
 Key Features
   Paper plugin (1.21.x)
+  
   Asynchronous player data processing
+  
   MySQL as the source of truth
+  
   Redis as an in-memory cache with TTL
+  
   Redis Pub/Sub for cache invalidation
+  
   Thread-safe architecture
+  
   Fat-JAR build using Shadow
