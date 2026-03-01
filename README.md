@@ -1,18 +1,13 @@
-Skalierbares Core-System für Minecraft-Server auf Basis von Paper, MySQL und Redis.
-Der Fokus liegt auf sauberer Architektur, Thread-Safety und Netzwerk-Tauglichkeit.
-Das Projekt bildet die Grundlage für größere Minecraft-Netzwerke mit mehreren Servern und optionalem Proxy (Velocity).
+A scalable core system for Minecraft servers built on Paper, MySQL, and Redis.
+The project focuses on clean architecture, thread safety, and network-ready design.
+It serves as a foundation for larger Minecraft networks with multiple servers and an optional proxy layer (Velocity).
 
 
-Paper Plugin (1.21.x)
-
-Asynchrone Player-Datenverarbeitung
-
-MySQL als Source of Truth
-
-Redis als In-Memory Cache (TTL)
-
-Redis Pub/Sub zur Cache-Invalidierung
-
-Thread-sichere Architektur
-
-Fat-JAR Build (Shadow)
+Key Features
+  Paper plugin (1.21.x)
+  Asynchronous player data processing
+  MySQL as the source of truth
+  Redis as an in-memory cache with TTL
+  Redis Pub/Sub for cache invalidation
+  Thread-safe architecture
+  Fat-JAR build using Shadow
