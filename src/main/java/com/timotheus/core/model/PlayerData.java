@@ -1,8 +1,11 @@
 package com.timotheus.core.model;
 
+import java.io.Serializable;
 import java.util.UUID;
 
-public class PlayerData {
+public class PlayerData implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private final UUID uuid;
     private int coins;

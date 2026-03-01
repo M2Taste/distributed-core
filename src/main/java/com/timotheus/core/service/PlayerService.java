@@ -1,9 +1,10 @@
 package com.timotheus.core.service;
 
-import com.timotheus.core.cache.PlayerDataCache;
+import com.timotheus.core.cache.RedisPlayerDataCache;
 import com.timotheus.core.model.PlayerData;
 import com.timotheus.core.repository.PlayerDataRepository;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -13,16 +14,16 @@ import java.util.concurrent.ExecutorService;
 
 public class PlayerService {
 
-    private final PlayerDataCache cache;
+    private final RedisPlayerDataCache redisCache;
     private final PlayerDataRepository repository;
     private final ExecutorService executor;
     private final JavaPlugin plugin;
 
-    public PlayerService(PlayerDataCache cache,
+    public PlayerService(RedisPlayerDataCache redisCache,
                          PlayerDataRepository repository,
                          ExecutorService executor,
                          JavaPlugin plugin) {
-        this.cache = cache;
+        this.redisCache = redisCache;
         this.repository = repository;
         this.executor = executor;
         this.plugin = plugin;
@@ -32,40 +33,42 @@ public class PlayerService {
         UUID uuid = player.getUniqueId();
 
         CompletableFuture
-                .supplyAsync(() ->
-                        repository.load(uuid)
-                                .orElseGet(() -> {
-                                    PlayerData data = new PlayerData(uuid);
-                                    repository.save(data);
-                                    return data;
-                                }), executor
-                )
-                .thenAccept(data -> Bukkit.getScheduler().runTask(plugin, () -> {
-
-                    Player onlinePlayer = Bukkit.getPlayer(uuid);
-                    if (onlinePlayer == null) {
-                        return; // Spieler nicht mehr online
+                .supplyAsync(() -> {
+                    PlayerData data = redisCache.get(uuid);
+                    if (data == null) {
+                        data = repository.load(uuid).orElseGet(() -> new PlayerData(uuid));
                     }
 
-                    // Cache übernimmt die DB-Instanz
-                    cache.put(data);
-
                     data.incrementJoins();
+                    redisCache.put(data);
+                    repository.save(data);
+                    return data.getJoins();
+                }, executor)
+                .thenAccept(joins -> Bukkit.getScheduler().runTask(plugin, () -> {
+                    Player online = Bukkit.getPlayer(uuid);
+                    if (online == null) {
+                        return;
+                    }
 
-                    onlinePlayer.sendMessage(
-                            "§aLoaded from DB | Joins: " + data.getJoins()
-                    );
-                }));
+                    online.sendMessage(ChatColor.GREEN + "Welcome! Joins: " + joins + " (Redis)");
+                }))
+                .exceptionally(throwable -> {
+                    plugin.getLogger().severe("Failed to handle join for " + uuid + ": " + throwable.getMessage());
+                    return null;
+                });
     }
 
     public void handlePlayerQuit(Player player) {
-        PlayerData data = cache.get(player.getUniqueId());
-        if (data != null) {
-            CompletableFuture.runAsync(
-                    () -> repository.save(data),
-                    executor
-            );
-            cache.remove(player.getUniqueId());
+        PlayerData data = redisCache.get(player.getUniqueId());
+        if (data == null) {
+            return;
         }
+
+        CompletableFuture
+                .runAsync(() -> repository.save(data), executor)
+                .exceptionally(throwable -> {
+                    plugin.getLogger().severe("Failed to persist quit data for " + player.getUniqueId() + ": " + throwable.getMessage());
+                    return null;
+                });
     }
 }

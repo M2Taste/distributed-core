@@ -2,6 +2,7 @@ package com.timotheus.core.redis;
 
 import org.redisson.Redisson;
 import org.redisson.api.RedissonClient;
+import org.redisson.codec.SerializationCodec;
 import org.redisson.config.Config;
 
 public class RedisManager {
@@ -10,6 +11,7 @@ public class RedisManager {
 
     public RedisManager(String host, int port) {
         Config config = new Config();
+        config.setCodec(new SerializationCodec());
         config.useSingleServer()
                 .setAddress("redis://" + host + ":" + port);
 
