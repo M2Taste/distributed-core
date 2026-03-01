@@ -9,5 +9,7 @@ public interface PlayerDataRepository {
 
     Optional<PlayerData> load(UUID uuid);
 
+    PlayerData incrementJoinsAndLoad(UUID uuid);
+
     void save(PlayerData data);
 }

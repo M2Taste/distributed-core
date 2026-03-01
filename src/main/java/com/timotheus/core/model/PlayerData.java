@@ -25,12 +25,20 @@ public class PlayerData implements Serializable {
         return coins;
     }
 
+    public void setCoins(int coins) {
+        this.coins = coins;
+    }
+
     public void addCoins(int amount) {
         this.coins += amount;
     }
 
     public int getJoins() {
         return joins;
+    }
+
+    public void setJoins(int joins) {
+        this.joins = joins;
     }
 
     public void incrementJoins() {

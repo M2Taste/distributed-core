@@ -2,6 +2,7 @@ package com.timotheus.core.service;
 
 import com.timotheus.core.cache.RedisPlayerDataCache;
 import com.timotheus.core.model.PlayerData;
+import com.timotheus.core.redis.RedisPublisher;
 import com.timotheus.core.repository.PlayerDataRepository;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -16,15 +17,18 @@ public class PlayerService {
 
     private final RedisPlayerDataCache redisCache;
     private final PlayerDataRepository repository;
+    private final RedisPublisher publisher;
     private final ExecutorService executor;
     private final JavaPlugin plugin;
 
     public PlayerService(RedisPlayerDataCache redisCache,
                          PlayerDataRepository repository,
+                         RedisPublisher redisPublisher,
                          ExecutorService executor,
                          JavaPlugin plugin) {
         this.redisCache = redisCache;
         this.repository = repository;
+        this.publisher = redisPublisher;
         this.executor = executor;
         this.plugin = plugin;
     }
@@ -34,14 +38,12 @@ public class PlayerService {
 
         CompletableFuture
                 .supplyAsync(() -> {
-                    PlayerData data = redisCache.get(uuid);
-                    if (data == null) {
-                        data = repository.load(uuid).orElseGet(() -> new PlayerData(uuid));
-                    }
+                    PlayerData data = repository.incrementJoinsAndLoad(uuid);
 
-                    data.incrementJoins();
                     redisCache.put(data);
-                    repository.save(data);
+
+                    publisher.publishPlayerUpdate(uuid);
+
                     return data.getJoins();
                 }, executor)
                 .thenAccept(joins -> Bukkit.getScheduler().runTask(plugin, () -> {
@@ -50,10 +52,14 @@ public class PlayerService {
                         return;
                     }
 
-                    online.sendMessage(ChatColor.GREEN + "Welcome! Joins: " + joins + " (Redis)");
+                    online.sendMessage(
+                            ChatColor.GREEN + "Welcome! Joins: " + joins + " (Redis)"
+                    );
                 }))
                 .exceptionally(throwable -> {
-                    plugin.getLogger().severe("Failed to handle join for " + uuid + ": " + throwable.getMessage());
+                    plugin.getLogger().severe(
+                            "Failed to handle join for " + uuid + ": " + throwable.getMessage()
+                    );
                     return null;
                 });
     }
@@ -66,6 +72,7 @@ public class PlayerService {
 
         CompletableFuture
                 .runAsync(() -> repository.save(data), executor)
+                .thenRun(() -> publisher.publishPlayerUpdate(player.getUniqueId()))
                 .exceptionally(throwable -> {
                     plugin.getLogger().severe("Failed to persist quit data for " + player.getUniqueId() + ": " + throwable.getMessage());
                     return null;

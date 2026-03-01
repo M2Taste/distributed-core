@@ -5,12 +5,15 @@ import com.timotheus.core.database.DatabaseManager;
 import com.timotheus.core.listener.PlayerJoinListener;
 import com.timotheus.core.listener.PlayerQuitListener;
 import com.timotheus.core.redis.RedisManager;
+import com.timotheus.core.redis.RedisPublisher;
+import com.timotheus.core.redis.RedisSubscriber;
 import com.timotheus.core.repository.MySQLPlayerDataRepository;
 import com.timotheus.core.repository.PlayerDataRepository;
 import com.timotheus.core.service.PlayerService;
 import com.timotheus.core.util.ExecutorProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.util.UUID;
 import java.util.logging.Level;
 
 public final class CorePlugin extends JavaPlugin {
@@ -24,6 +27,7 @@ public final class CorePlugin extends JavaPlugin {
         saveDefaultConfig();
 
         try {
+            //Infrastructure
             this.executorProvider = new ExecutorProvider();
 
             String dbHost = getConfig().getString("database.host", "localhost");
@@ -33,23 +37,39 @@ public final class CorePlugin extends JavaPlugin {
             String dbPassword = getConfig().getString("database.password", "root");
 
             this.databaseManager = new DatabaseManager(
-                    dbHost,
-                    dbPort,
-                    dbName,
-                    dbUser,
-                    dbPassword
+                    dbHost, dbPort, dbName, dbUser, dbPassword
             );
 
             String redisHost = getConfig().getString("redis.host", "localhost");
             int redisPort = getConfig().getInt("redis.port", 6379);
             this.redisManager = new RedisManager(redisHost, redisPort);
 
-            RedisPlayerDataCache redisCache = new RedisPlayerDataCache(redisManager.getClient());
-            PlayerDataRepository repository = new MySQLPlayerDataRepository(databaseManager.getDataSource());
+            //Redis Cache
+            RedisPlayerDataCache redisCache =
+                    new RedisPlayerDataCache(redisManager.getClient());
 
+            //Repository
+            PlayerDataRepository repository =
+                    new MySQLPlayerDataRepository(databaseManager.getDataSource());
+
+            //Redis Publisher
+            String serverId = UUID.randomUUID().toString();
+            RedisPublisher redisPublisher =
+                    new RedisPublisher(redisManager.getClient(), serverId, getLogger());
+
+            //Redis Subscriber
+            new RedisSubscriber(
+                    redisManager.getClient(),
+                    redisCache,
+                    serverId,
+                    this
+            );
+
+            //Service
             PlayerService playerService = new PlayerService(
                     redisCache,
                     repository,
+                    redisPublisher,
                     executorProvider.getExecutor(),
                     this
             );

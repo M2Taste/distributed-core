@@ -29,10 +29,8 @@ public class MySQLPlayerDataRepository implements PlayerDataRepository {
 
             if (rs.next()) {
                 PlayerData data = new PlayerData(uuid);
-                data.addCoins(rs.getInt("coins"));
-                for (int i = 0; i < rs.getInt("joins"); i++) {
-                    data.incrementJoins();
-                }
+                data.setCoins(rs.getInt("coins"));
+                data.setJoins(rs.getInt("joins"));
                 return Optional.of(data);
             }
 
@@ -40,6 +38,43 @@ public class MySQLPlayerDataRepository implements PlayerDataRepository {
             e.printStackTrace();
         }
         return Optional.empty();
+    }
+
+    @Override
+    public PlayerData incrementJoinsAndLoad(UUID uuid) {
+        try (Connection con = dataSource.getConnection()) {
+            try (PreparedStatement upsert = con.prepareStatement(
+                    """
+                    INSERT INTO player_data (uuid, coins, joins)
+                    VALUES (?, 0, 1)
+                    ON DUPLICATE KEY UPDATE
+                      joins = joins + 1
+                    """
+            )) {
+                upsert.setString(1, uuid.toString());
+                upsert.executeUpdate();
+            }
+
+            try (PreparedStatement select = con.prepareStatement(
+                    "SELECT coins, joins FROM player_data WHERE uuid = ?"
+            )) {
+                select.setString(1, uuid.toString());
+                ResultSet rs = select.executeQuery();
+                if (rs.next()) {
+                    PlayerData data = new PlayerData(uuid);
+                    data.setCoins(rs.getInt("coins"));
+                    data.setJoins(rs.getInt("joins"));
+                    return data;
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        // Fallback object if DB failed; keeps service flow safe.
+        PlayerData fallback = new PlayerData(uuid);
+        fallback.incrementJoins();
+        return fallback;
     }
 
     @Override
@@ -51,7 +86,7 @@ public class MySQLPlayerDataRepository implements PlayerDataRepository {
                      VALUES (?, ?, ?)
                      ON DUPLICATE KEY UPDATE
                        coins = VALUES(coins),
-                       joins = VALUES(joins)
+                       joins = GREATEST(joins, VALUES(joins))
                      """
              )) {
 
