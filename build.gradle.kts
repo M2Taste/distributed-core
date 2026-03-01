@@ -12,6 +12,8 @@ repositories {
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
+    implementation("com.zaxxer:HikariCP:5.1.0")
+    implementation("mysql:mysql-connector-j:9.1.0")
 }
 
 java {
