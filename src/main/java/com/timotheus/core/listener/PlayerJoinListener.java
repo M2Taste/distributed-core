@@ -15,6 +15,7 @@ public class PlayerJoinListener implements Listener {
 
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
+        System.out.println("[DEBUG] PlayerJoinEvent fired: " + event.getPlayer().getName());
         playerService.handlePlayerJoin(event.getPlayer());
     }
 }

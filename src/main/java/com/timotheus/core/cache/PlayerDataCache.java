@@ -20,4 +20,8 @@ public class PlayerDataCache {
     public void remove(UUID uuid) {
         cache.remove(uuid);
     }
+
+    public void put(PlayerData data) {
+        cache.put(data.getUuid(), data);
+    }
 }
